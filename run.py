@@ -5,8 +5,10 @@ import datetime
 import time
 import messages
 import stickers
+import peewee
+from db_init import *
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 
 logging.basicConfig(
@@ -16,57 +18,50 @@ logging.basicConfig(
 
 
 def create_user(chat_id, user_id):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-        try:
-            members = data[str(chat_id)]['members']
-            if user_id in members:
-                return False
-            members.append(user_id)
-            data[str(chat_id)]['members'] = members
-            try:
-                if (data[str(chat_id)]['stats'][f'{user_id}'] != 0) or \
-                        (data[str(chat_id)]['pidor_stats'][f'{user_id}'] != 0):
-                    pass
-                else:
-                    data[str(chat_id)]['stats'][f'{user_id}'] = 0
-                    data[str(chat_id)]['pidor_stats'][f'{user_id}'] = 0
-            except KeyError:
-                data[str(chat_id)]['stats'][f'{user_id}'] = 0
-                data[str(chat_id)]['pidor_stats'][f'{user_id}'] = 0
-        except KeyError:
-            data[str(chat_id)] = {'members': [user_id], 'pidor_stats': {f'{user_id}': 0}, 'stats': {f'{user_id}': 0},
-                                  'current_pidor': {
-                                      'id': 0,
-                                      'timestamp': 1679601600
-                                  },
-                                  'current_nice': {
-                                      'id': 0,
-                                      'timestamp': 1679601600
-                                  }}
-    with open('data.json', 'w') as new_file:
-        new_file.write(json.dumps(data))
+    is_user_in_chat = False
+    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
+        is_user_in_chat = True
+    if is_user_in_chat:
+        return False
+    Members.create(chat_id=chat_id, member_id=user_id)
+    stats_of_user = 0
+    pidor_stats_of_user = 0
+    for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
+        stats_of_user = k.count
+    for p in PidorStats.select().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id)):
+        pidor_stats_of_user = p.count
+    if (stats_of_user == 0) and (pidor_stats_of_user == 0):
+        query = PidorStats.delete().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id))
+        query.execute()
+        query = Stats.delete().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id))
+        query.execute()
+        Stats.create(chat_id=chat_id, member_id=user_id, count=0)
+        PidorStats.create(chat_id=chat_id, member_id=user_id, count=0)
+    is_current_pidor_exists_for_chat = False
+    is_current_nice_exists_for_chat = False
+    for b in CurrentPidor.select().where(CurrentPidor.chat_id == chat_id):
+        is_current_pidor_exists_for_chat = True
+    for u in CurrentNice.select().where(CurrentNice.chat_id == chat_id):
+        is_current_nice_exists_for_chat = True
+    if (is_current_nice_exists_for_chat and is_current_pidor_exists_for_chat) is False:
+        CurrentNice.create(chat_id=chat_id, member_id=0, timestamp=0)
+        CurrentPidor.create(chat_id=chat_id, member_id=0, timestamp=0)
     return True
 
 
 def unreg_in_data(chat_id, user_id):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-    try:
-        data[str(chat_id)]['members'].remove(user_id)
-    except KeyError:
+    query = Members.delete().where((Members.chat_id == chat_id) & (Members.member_id == user_id))
+    deleted_rows = query.execute()
+    if deleted_rows == 0:
         return 'Пользователь не найден'
-    except ValueError:
-        return 'Пользователь не найден'
-    with open('data.json', 'w') as new_file:
-        new_file.write(json.dumps(data))
+    else:
         return 'deleted'
 
 
 def get_random_id(chat_id, pidor_or_nice):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-    members = data[str(chat_id)]['members']
+    members = []
+    for l in Members.select().where(Members.chat_id == chat_id):
+        members.append(l.member_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -79,60 +74,70 @@ def get_random_id(chat_id, pidor_or_nice):
 
 
 def update_pidor_stats(chat_id, pidor_id, stats_type):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-        data[str(chat_id)][stats_type][str(pidor_id)] += 1
-    with open('data.json', 'w') as new_file:
-        new_file.write(json.dumps(data))
-    return data[str(chat_id)][stats_type][str(pidor_id)]
+    current_stat = 0
+    if stats_type == 'stats':
+        for l in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == pidor_id)):
+            current_stat = l.count
+    if stats_type == 'pidor_stats':
+        for p in PidorStats.select().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == pidor_id)):
+            current_stat = p.count
+    new_stat = current_stat + 1
+    if stats_type == 'stats':
+        query = Stats.update(count=new_stat).where((Stats.chat_id == chat_id) &
+                                                   (Stats.member_id == pidor_id))
+        query.execute()
+    if stats_type == 'pidor_stats':
+        query = PidorStats.update(count=new_stat).where((PidorStats.chat_id == chat_id) &
+                                                        (PidorStats.member_id == pidor_id))
+        query.execute()
+    return new_stat
 
 
 def get_pidor_stats(chat_id, stats_type):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-        try:
-            stats = data[str(chat_id)][stats_type]
-        except KeyError:
-            return 'Ни один пользователь не зарегистрирован, статистики нет'
-    return stats
+    stats = {}
+    if stats_type == 'stats':
+        for p in Stats.select().where(Stats.chat_id == chat_id):
+            stats[p.member_id] = p.count
+    if stats_type == 'pidor_stats':
+        for f in PidorStats.select().where(PidorStats.chat_id == chat_id):
+            stats[f.member_id] = f.count
+    if stats == {}:
+        return 'Ни один пользователь не зарегистрирован, статистики нет'
+    else:
+        return stats
 
 
 def reset_stats_data(chat_id):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-    statistics = data[str(chat_id)]['stats'].keys()
-    for i in statistics:
-        data[str(chat_id)]['stats'][i] = 0
-    del_stat = 0
-    for k in statistics:
-        if (int(k) in data[str(chat_id)]['members']) is False:
-            del_stat = k
-            break
-    if del_stat != 0:
-        del data[str(chat_id)]['stats'][del_stat]
-    pidor_statistics = data[str(chat_id)]['pidor_stats'].keys()
-    for l in pidor_statistics:
-        data[str(chat_id)]['pidor_stats'][l] = 0
-    del_pidor_stat = 0
-    for p in pidor_statistics:
-        if (int(p) in data[str(chat_id)]['members']) is False:
-            del_pidor_stat = p
-            break
-    if del_pidor_stat != 0:
-        del data[str(chat_id)]['pidor_stats'][del_pidor_stat]
-    data[str(chat_id)]['current_pidor']['timestamp'] = 0
-    data[str(chat_id)]['current_nice']['timestamp'] = 0
-    with open('data.json', 'w') as new_file:
-        new_file.write(json.dumps(data))
+    Stats.update(count=0).where(Stats.chat_id == chat_id).execute()
+    PidorStats.update(count=0).where(PidorStats.chat_id == chat_id).execute()
+    members_in_game = []
+    members_in_stats = []
+    members_in_pidorstats = []
+    for p in Members.select().where(Members.chat_id == chat_id):
+        members_in_game.append(p.member_id)
+    for k in Stats.select().where(Stats.chat_id == chat_id):
+        members_in_stats.append(k.member_id)
+    for f in PidorStats.select().where(PidorStats.chat_id == chat_id):
+        members_in_pidorstats.append(f.member_id)
+    for s in members_in_stats:
+        if (s in members_in_game) is False:
+            stats_query = Stats.delete().where((Stats.chat_id == chat_id) & (Stats.member_id == s))
+            stats_query.execute()
+    for s in members_in_pidorstats:
+        if (s in members_in_game) is False:
+            p_query = PidorStats.delete().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == s))
+            p_query.execute()
+    CurrentNice.update(timestamp=0).where(CurrentNice.chat_id == chat_id).execute()
+    CurrentPidor.update(timestamp=0).where(CurrentPidor.chat_id == chat_id).execute()
 
 
 def update_current(chat_id, current_dict, user_id):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-    with open('data.json', 'w') as new_file:
-        data[str(chat_id)][current_dict]['timestamp'] = time.mktime(datetime.datetime.now().timetuple())
-        data[str(chat_id)][current_dict]['id'] = user_id
-        new_file.write(json.dumps(data))
+    if current_dict == 'current_nice':
+        CurrentNice.update(member_id=user_id, timestamp=time.mktime(datetime.datetime.now().timetuple())).where\
+            (CurrentNice.chat_id == chat_id).execute()
+    if current_dict == 'current_pidor':
+        CurrentPidor.update(member_id=user_id, timestamp=time.mktime(datetime.datetime.now().timetuple())).where\
+            (CurrentPidor.chat_id == chat_id).execute()
 
 
 def is_not_time_expired(chat_id, type_of_current):
@@ -143,10 +148,16 @@ def is_not_time_expired(chat_id, type_of_current):
 
 
 def get_current_user(chat_id, current_dict):
-    with open('data.json', 'r') as file:
-        data = json.loads(file.read())
-        current = data[str(chat_id)][current_dict]
-    return current
+    current_user = {'id': 0, 'timestamp': 0}
+    if current_dict == 'current_nice':
+        for p in CurrentNice.select().where(CurrentNice.chat_id == chat_id):
+            current_user['id'] = p.member_id
+            current_user['timestamp'] = p.timestamp
+    if current_dict == 'current_pidor':
+        for m in CurrentPidor.select().where(CurrentPidor.chat_id == chat_id):
+            current_user['id'] = m.member_id
+            current_user['timestamp'] = m.timestamp
+    return current_user
 
 
 async def reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -289,12 +300,35 @@ async def confirm_reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE
     if query.data == 'No':
         await query.edit_message_text(text='Правильный выбор 👍')
     else:
-        chat_id = query.data.split(" ")[1]
+        chat_id = int(query.data.split(" ")[1])
+        print(chat_id)
         reset_stats_data(chat_id)
         await query.edit_message_text(text='Статистика очищена, начинаем с чистого листа🙈')
 
 
+async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    reg_member = update.message.left_chat_member.id
+    user_info = await context.bot.get_chat_member(chat_id, reg_member)
+    message = unreg_in_data(chat_id, reg_member)
+    if message == 'Пользователь не найден':
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='Мы не будем по нему скучать, '
+                                                                              'ведь он не был в игре🤡')
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
+
+
 if __name__ == '__main__':
+    try:
+        dbhandle.connect()
+        Members.create_table()
+        PidorStats.create_table()
+        Stats.create_table()
+        CurrentPidor.create_table()
+        CurrentNice.create_table()
+    except peewee.InternalError as px:
+        print(str(px))
     application = ApplicationBuilder().token('TOKEN').build()
     reg_handler = CommandHandler('reg', reg)
     unreg_handler = CommandHandler('unreg', unreg)
@@ -306,4 +340,5 @@ if __name__ == '__main__':
     application.add_handlers([reg_handler, unreg_handler, pidor_handler, run_handler, stats_handler,
                               pidor_stats_handler, reset_stats_handler,
                               CallbackQueryHandler(confirm_reset_stats)])
+    application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, member_left))
     application.run_polling()
