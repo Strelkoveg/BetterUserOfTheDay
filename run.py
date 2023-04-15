@@ -62,6 +62,8 @@ def get_random_id(chat_id, pidor_or_nice):
     members = []
     for l in Members.select().where(Members.chat_id == chat_id):
         members.append(l.member_id)
+    if members == []:
+        return 'Nothing'
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -192,6 +194,10 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = f'Пидор дня уже определён, это {user_info.user.full_name}'
     else:
         pidor_id = get_random_id(chat_id, 'pidor')
+        if pidor_id == 'Nothing':
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='Ни один пользователь не '
+                                                                                  'зарегистрирован, невозможно выбрать')
+            return
         pidor_count = update_pidor_stats(chat_id, pidor_id, 'pidor_stats')
         user_info = await context.bot.get_chat_member(chat_id, pidor_id)
         message = f'Пидор дня - {user_info.user.full_name}'
@@ -222,6 +228,10 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = f'Красавчик дня уже определён, это {user_info.user.full_name}'
     else:
         nice_guy_id = get_random_id(chat_id, 'nice')
+        if nice_guy_id == 'Nothing':
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='Ни один пользователь не '
+                                                                                  'зарегистрирован, невозможно выбрать')
+            return
         pidor_count = update_pidor_stats(chat_id, nice_guy_id, 'stats')
         user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
         message = f'Красавчик дня - {user_info.user.full_name}'
