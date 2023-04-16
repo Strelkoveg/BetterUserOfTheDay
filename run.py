@@ -68,8 +68,6 @@ def get_random_id(chat_id, pidor_or_nice):
     for l in Members.select().where(Members.chat_id == chat_id):
         members.append(l.member_id)
     dbhandle.close()
-    if members == []:
-        return 'Nothing'
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -78,6 +76,8 @@ def get_random_id(chat_id, pidor_or_nice):
         if is_not_time_expired(chat_id, 'current_pidor'):
             immune_id = get_current_user(chat_id, 'current_pidor')['id']
             members.remove(immune_id)
+    if members == []:
+        return 'Nothing'
     return random.choice(members)
 
 
@@ -211,8 +211,8 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         pidor_id = get_random_id(chat_id, 'pidor')
         if pidor_id == 'Nothing':
-            await context.bot.send_message(chat_id=update.effective_chat.id, text='Ни один пользователь не '
-                                                                                  'зарегистрирован, невозможно выбрать')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='Невозможно выбрать пидора, список '
+                                                                                  'кандидатов пуст')
             return
         pidor_count = update_pidor_stats(chat_id, pidor_id, 'pidor_stats')
         user_info = await context.bot.get_chat_member(chat_id, pidor_id)
@@ -245,8 +245,8 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         nice_guy_id = get_random_id(chat_id, 'nice')
         if nice_guy_id == 'Nothing':
-            await context.bot.send_message(chat_id=update.effective_chat.id, text='Ни один пользователь не '
-                                                                                  'зарегистрирован, невозможно выбрать')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='Невозможно выбрать красавчика, '
+                                                                                  'список кандидатов пуст')
             return
         pidor_count = update_pidor_stats(chat_id, nice_guy_id, 'stats')
         user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
