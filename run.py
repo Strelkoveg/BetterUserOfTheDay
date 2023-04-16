@@ -1,6 +1,5 @@
 import logging
 import random
-import json
 import datetime
 import time
 import messages
@@ -18,10 +17,12 @@ logging.basicConfig(
 
 
 def create_user(chat_id, user_id):
+    dbhandle.connect()
     is_user_in_chat = False
     for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
         is_user_in_chat = True
     if is_user_in_chat:
+        dbhandle.close()
         return False
     Members.create(chat_id=chat_id, member_id=user_id)
     stats_of_user = 0
@@ -46,12 +47,15 @@ def create_user(chat_id, user_id):
     if (is_current_nice_exists_for_chat and is_current_pidor_exists_for_chat) is False:
         CurrentNice.create(chat_id=chat_id, member_id=0, timestamp=0)
         CurrentPidor.create(chat_id=chat_id, member_id=0, timestamp=0)
+    dbhandle.close()
     return True
 
 
 def unreg_in_data(chat_id, user_id):
+    dbhandle.connect()
     query = Members.delete().where((Members.chat_id == chat_id) & (Members.member_id == user_id))
     deleted_rows = query.execute()
+    dbhandle.close()
     if deleted_rows == 0:
         return 'Пользователь не найден'
     else:
@@ -59,9 +63,11 @@ def unreg_in_data(chat_id, user_id):
 
 
 def get_random_id(chat_id, pidor_or_nice):
+    dbhandle.connect()
     members = []
     for l in Members.select().where(Members.chat_id == chat_id):
         members.append(l.member_id)
+    dbhandle.close()
     if members == []:
         return 'Nothing'
     if pidor_or_nice == 'pidor':
@@ -76,6 +82,7 @@ def get_random_id(chat_id, pidor_or_nice):
 
 
 def update_pidor_stats(chat_id, pidor_id, stats_type):
+    dbhandle.connect()
     current_stat = 0
     if stats_type == 'stats':
         for l in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == pidor_id)):
@@ -92,10 +99,12 @@ def update_pidor_stats(chat_id, pidor_id, stats_type):
         query = PidorStats.update(count=new_stat).where((PidorStats.chat_id == chat_id) &
                                                         (PidorStats.member_id == pidor_id))
         query.execute()
+    dbhandle.close()
     return new_stat
 
 
 def get_pidor_stats(chat_id, stats_type):
+    dbhandle.connect()
     stats = {}
     if stats_type == 'stats':
         for p in Stats.select().where(Stats.chat_id == chat_id):
@@ -103,6 +112,7 @@ def get_pidor_stats(chat_id, stats_type):
     if stats_type == 'pidor_stats':
         for f in PidorStats.select().where(PidorStats.chat_id == chat_id):
             stats[f.member_id] = f.count
+    dbhandle.close()
     if stats == {}:
         return 'Ни один пользователь не зарегистрирован, статистики нет'
     else:
@@ -110,6 +120,7 @@ def get_pidor_stats(chat_id, stats_type):
 
 
 def reset_stats_data(chat_id):
+    dbhandle.connect()
     Stats.update(count=0).where(Stats.chat_id == chat_id).execute()
     PidorStats.update(count=0).where(PidorStats.chat_id == chat_id).execute()
     members_in_game = []
@@ -131,15 +142,18 @@ def reset_stats_data(chat_id):
             p_query.execute()
     CurrentNice.update(timestamp=0).where(CurrentNice.chat_id == chat_id).execute()
     CurrentPidor.update(timestamp=0).where(CurrentPidor.chat_id == chat_id).execute()
+    dbhandle.close()
 
 
 def update_current(chat_id, current_dict, user_id):
+    dbhandle.connect()
     if current_dict == 'current_nice':
         CurrentNice.update(member_id=user_id, timestamp=time.mktime(datetime.datetime.now().timetuple())).where\
             (CurrentNice.chat_id == chat_id).execute()
     if current_dict == 'current_pidor':
         CurrentPidor.update(member_id=user_id, timestamp=time.mktime(datetime.datetime.now().timetuple())).where\
             (CurrentPidor.chat_id == chat_id).execute()
+    dbhandle.close()
 
 
 def is_not_time_expired(chat_id, type_of_current):
@@ -150,6 +164,7 @@ def is_not_time_expired(chat_id, type_of_current):
 
 
 def get_current_user(chat_id, current_dict):
+    dbhandle.connect()
     current_user = {'id': 0, 'timestamp': 0}
     if current_dict == 'current_nice':
         for p in CurrentNice.select().where(CurrentNice.chat_id == chat_id):
@@ -159,6 +174,7 @@ def get_current_user(chat_id, current_dict):
         for m in CurrentPidor.select().where(CurrentPidor.chat_id == chat_id):
             current_user['id'] = m.member_id
             current_user['timestamp'] = m.timestamp
+    dbhandle.close()
     return current_user
 
 
@@ -337,6 +353,7 @@ if __name__ == '__main__':
         Stats.create_table()
         CurrentPidor.create_table()
         CurrentNice.create_table()
+        dbhandle.close()
     except peewee.InternalError as px:
         print(str(px))
     application = ApplicationBuilder().token('TOKEN').build()
