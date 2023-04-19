@@ -207,7 +207,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     congratulations = ""
     if is_not_time_expired(chat_id, 'current_pidor'):
         user_info = await context.bot.get_chat_member(chat_id, get_current_user(chat_id, 'current_pidor')['id'])
-        message = f'Пидор дня уже определён, это {user_info.user.full_name}'
+        message = f'Пидор дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
     else:
         pidor_id = get_random_id(chat_id, 'pidor')
         if pidor_id == 'Nothing':
@@ -216,7 +216,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         pidor_count = update_pidor_stats(chat_id, pidor_id, 'pidor_stats')
         user_info = await context.bot.get_chat_member(chat_id, pidor_id)
-        message = f'Пидор дня - {user_info.user.full_name}'
+        message = f'Пидор дня - {user_info.user.full_name}  (@{user_info.user.username})'
         update_current(chat_id, 'current_pidor', pidor_id)
         for i in messages.PIDOR_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -241,7 +241,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     congratulations = ""
     if is_not_time_expired(chat_id, 'current_nice'):
         user_info = await context.bot.get_chat_member(chat_id, get_current_user(chat_id, 'current_nice')['id'])
-        message = f'Красавчик дня уже определён, это {user_info.user.full_name}'
+        message = f'Красавчик дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
     else:
         nice_guy_id = get_random_id(chat_id, 'nice')
         if nice_guy_id == 'Nothing':
@@ -250,7 +250,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         pidor_count = update_pidor_stats(chat_id, nice_guy_id, 'stats')
         user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
-        message = f'Красавчик дня - {user_info.user.full_name}'
+        message = f'Красавчик дня - {user_info.user.full_name} (@{user_info.user.username})'
         update_current(chat_id, 'current_nice', nice_guy_id)
         for i in messages.NICE_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -280,7 +280,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         counts = []
         for item in statistics.items():
             user_info = await context.bot.get_chat_member(chat_id, item[0])
-            usernames.append(user_info.user.full_name)
+            usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры красавчик дня:']
@@ -300,7 +300,7 @@ async def pidor_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         counts = []
         for item in statistics.items():
             user_info = await context.bot.get_chat_member(chat_id, item[0])
-            usernames.append(user_info.user.full_name)
+            usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры пидор дня:']
@@ -327,7 +327,6 @@ async def confirm_reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(text='Правильный выбор 👍')
     else:
         chat_id = int(query.data.split(" ")[1])
-        print(chat_id)
         reset_stats_data(chat_id)
         await query.edit_message_text(text='Статистика очищена, начинаем с чистого листа🙈')
 
