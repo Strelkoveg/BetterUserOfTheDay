@@ -119,6 +119,35 @@ def get_pidor_stats(chat_id, stats_type):
         return stats
 
 
+def get_all_members(chat_id):
+    members = []
+    dbhandle.connect()
+    for i in Members.select(Members.member_id).where(Members.chat_id == chat_id):
+        members.append(i.member_id)
+    dbhandle.close()
+    return members
+
+
+def get_user_percentage_nice_pidor(chat_id, member_id):
+    nice = 0
+    dbhandle.connect()
+    for i in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == member_id)):
+        nice = i.count
+    pidor = 0
+    for o in PidorStats.select().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == member_id)):
+        pidor = o.count
+    dbhandle.close()
+    all_count = pidor + nice
+    if pidor == 0:
+        pidor_percent = 0
+    if nice == 0:
+        nice_percent = 0
+    else:
+        pidor_percent = int((pidor / all_count) * 100)
+        nice_percent = 100 - pidor_percent
+    return {'member_id': member_id, 'nice': nice_percent, 'pidor': pidor_percent}
+
+
 def reset_stats_data(chat_id):
     dbhandle.connect()
     Stats.update(count=0).where(Stats.chat_id == chat_id).execute()
@@ -344,6 +373,22 @@ async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
 
 
+async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    members = get_all_members(chat_id)
+    stats_list = []
+    for j in members:
+        stats_list.append(get_user_percentage_nice_pidor(chat_id, j))
+    sorted_stats_list = sorted(stats_list, key=lambda d: d['nice'])
+    text_list = []
+    for i in sorted_stats_list:
+        user_info = await context.bot.get_chat_member(chat_id, i['member_id'])
+        text_list.append(f"{user_info.user.full_name} (@{user_info.user.username}) на {i['nice']}% красавчик и на "
+                         f"{i['pidor']}% пидор")
+    text = '\n'.join(text_list)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
 if __name__ == '__main__':
     try:
         dbhandle.connect()
@@ -363,8 +408,9 @@ if __name__ == '__main__':
     stats_handler = CommandHandler('stats', stats)
     pidor_stats_handler = CommandHandler('pidorstats', pidor_stats)
     reset_stats_handler = CommandHandler('resetstats', reset_stats)
+    percent_stats_handler = CommandHandler('percentstats', percent_stats)
     application.add_handlers([reg_handler, unreg_handler, pidor_handler, run_handler, stats_handler,
-                              pidor_stats_handler, reset_stats_handler,
+                              pidor_stats_handler, reset_stats_handler, percent_stats_handler,
                               CallbackQueryHandler(confirm_reset_stats)])
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, member_left))
     application.run_polling()
