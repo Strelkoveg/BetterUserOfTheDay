@@ -138,10 +138,15 @@ def get_user_percentage_nice_pidor(chat_id, member_id):
         pidor = o.count
     dbhandle.close()
     all_count = pidor + nice
-    if pidor == 0:
+    if pidor == 0 and nice != 0:
         pidor_percent = 0
-    if nice == 0:
+        nice_percent = 100
+    if nice == 0 and pidor != 0:
+        pidor_percent = 100
         nice_percent = 0
+    if pidor == 0 and nice == 0:
+        pidor_percent = 50
+        nice_percent = 50
     else:
         pidor_percent = int((pidor / all_count) * 100)
         nice_percent = 100 - pidor_percent
