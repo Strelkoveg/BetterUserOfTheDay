@@ -1,13 +1,13 @@
 from peewee import *
 
-user = 'root'
+user = 'bot'
 password = '11111'
 db_name = 'test_database'
 
 dbhandle = MySQLDatabase(
     db_name, user=user,
     password=password,
-    host='localhost'
+    host='database'
 )
 
 
