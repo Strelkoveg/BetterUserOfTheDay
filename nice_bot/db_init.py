@@ -1,13 +1,15 @@
 from peewee import *
+from os import getenv
 
-user = 'bot'
-password = '11111'
-db_name = 'test_database'
+user = getenv('DB_USER')
+password = getenv('DB_PASSWORD')
+db_name = getenv('DB_NAME')
+db_host = getenv('DB_HOST')
 
 dbhandle = MySQLDatabase(
     db_name, user=user,
     password=password,
-    host='database'
+    host=db_host
 )
 
 

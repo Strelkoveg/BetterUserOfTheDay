@@ -12,7 +12,15 @@ services:
       timeout: 20s
       retries: 10
   nicebot:
-    build: .
+    build: ./nice_bot
+    volumes:
+      - ./nice_bot:/usr/src/app
+    environment:
+      BOT_TOKEN: "TOKEN"
+      DB_USER: "bot"
+      DB_PASSWORD: "11111"
+      DB_NAME: "test_database"
+      DB_HOST: "database"
     depends_on:
       database:
         condition: service_healthy

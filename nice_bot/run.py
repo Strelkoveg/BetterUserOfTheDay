@@ -5,6 +5,7 @@ import time
 import messages
 import stickers
 import peewee
+from os import getenv
 from db_init import *
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
@@ -267,7 +268,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers.BILLY_TEAR_OFF_VEST)
+                                       sticker=stickers.BILLY_TEAR_OFF_VEST)
 
 
 async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -301,7 +302,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers.DRINK_CHAMPAGNE)
+                                       sticker=stickers.DRINK_CHAMPAGNE)
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -405,7 +406,7 @@ if __name__ == '__main__':
         dbhandle.close()
     except peewee.InternalError as px:
         print(str(px))
-    application = ApplicationBuilder().token('TOKEN').build()
+    application = ApplicationBuilder().token(getenv('BOT_TOKEN')).build()
     reg_handler = CommandHandler('reg', reg)
     unreg_handler = CommandHandler('unreg', unreg)
     pidor_handler = CommandHandler('pidor', pidor)
