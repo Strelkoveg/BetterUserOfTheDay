@@ -241,8 +241,12 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     congratulations = ""
     if is_not_time_expired(chat_id, 'current_pidor'):
-        user_info = await context.bot.get_chat_member(chat_id, get_current_user(chat_id, 'current_pidor')['id'])
-        message = f'Пидор дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+        current_pidor_id = get_current_user(chat_id, 'current_pidor')['id']
+        try:
+            user_info = await context.bot.get_chat_member(chat_id, current_pidor_id)
+            message = f'Пидор дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+        except telegram.error.BadRequest:
+            message = f'Пидор дня уже определён, это {current_pidor_id})'
     else:
         pidor_id = get_random_id(chat_id, 'pidor')
         if pidor_id == 'Nothing':
@@ -250,8 +254,11 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                                                   'кандидатов пуст')
             return
         pidor_count = update_pidor_stats(chat_id, pidor_id, 'pidor_stats')
-        user_info = await context.bot.get_chat_member(chat_id, pidor_id)
-        message = f'Пидор дня - {user_info.user.full_name}  (@{user_info.user.username})'
+        try:
+            user_info = await context.bot.get_chat_member(chat_id, pidor_id)
+            message = f'Пидор дня - {user_info.user.full_name}  (@{user_info.user.username})'
+        except telegram.error.BadRequest:
+            message = f'Пидор дня - {pidor_id})'
         update_current(chat_id, 'current_pidor', pidor_id)
         for i in messages.PIDOR_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -268,15 +275,19 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                       sticker=stickers.BILLY_TEAR_OFF_VEST)
+                                           sticker=stickers.BILLY_TEAR_OFF_VEST)
 
 
 async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     congratulations = ""
     if is_not_time_expired(chat_id, 'current_nice'):
-        user_info = await context.bot.get_chat_member(chat_id, get_current_user(chat_id, 'current_nice')['id'])
-        message = f'Красавчик дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+        current_nice_id = get_current_user(chat_id, 'current_nice')['id']
+        try:
+            user_info = await context.bot.get_chat_member(chat_id, current_nice_id)
+            message = f'Красавчик дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+        except telegram.error.BadRequest:
+            message = f'Красавчик дня уже определён, это {current_nice_id})'
     else:
         nice_guy_id = get_random_id(chat_id, 'nice')
         if nice_guy_id == 'Nothing':
@@ -284,8 +295,11 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                                                   'список кандидатов пуст')
             return
         pidor_count = update_pidor_stats(chat_id, nice_guy_id, 'stats')
-        user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
-        message = f'Красавчик дня - {user_info.user.full_name} (@{user_info.user.username})'
+        try:
+            user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
+            message = f'Красавчик дня - {user_info.user.full_name} (@{user_info.user.username})'
+        except telegram.error.BadRequest:
+            message = f'Красавчик дня - {nice_guy_id})'
         update_current(chat_id, 'current_nice', nice_guy_id)
         for i in messages.NICE_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -302,7 +316,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                       sticker=stickers.DRINK_CHAMPAGNE)
+                                           sticker=stickers.DRINK_CHAMPAGNE)
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -314,8 +328,11 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usernames = []
         counts = []
         for item in statistics.items():
-            user_info = await context.bot.get_chat_member(chat_id, item[0])
-            usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
+            try:
+                user_info = await context.bot.get_chat_member(chat_id, item[0])
+                usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
+            except telegram.error.BadRequest:
+                usernames.append(str(item[0]))
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры красавчик дня:']
@@ -334,8 +351,11 @@ async def pidor_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usernames = []
         counts = []
         for item in statistics.items():
-            user_info = await context.bot.get_chat_member(chat_id, item[0])
-            usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
+            try:
+                user_info = await context.bot.get_chat_member(chat_id, item[0])
+                usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
+            except telegram.error.BadRequest:
+                usernames.append(str(item[0]))
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры пидор дня:']
@@ -369,14 +389,17 @@ async def confirm_reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     reg_member = update.message.left_chat_member.id
-    user_info = await context.bot.get_chat_member(chat_id, reg_member)
+    try:
+        user_info_full_name = await context.bot.get_chat_member(chat_id, reg_member).user.full_name
+    except telegram.error.BadRequest:
+        user_info_full_name = str(reg_member)
     message = unreg_in_data(chat_id, reg_member)
     if message == 'Пользователь не найден':
         await context.bot.send_message(chat_id=update.effective_chat.id, text='Мы не будем по нему скучать, '
                                                                               'ведь он не был в игре🤡')
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
+                                       text=f'{user_info_full_name} c позором бежал, но статистика всё помнит')
 
 
 async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -388,9 +411,13 @@ async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sorted_stats_list = sorted(stats_list, key=lambda d: d['nice'])
     text_list = []
     for i in sorted_stats_list:
-        user_info = await context.bot.get_chat_member(chat_id, i['member_id'])
-        text_list.append(f"{user_info.user.full_name} (@{user_info.user.username}) на {i['nice']}% красавчик и на "
-                         f"{i['pidor']}% пидор")
+        try:
+            user_info = await context.bot.get_chat_member(chat_id, i['member_id'])
+            text_list.append(f"{user_info.user.full_name} (@{user_info.user.username}) на {i['nice']}% красавчик и на "
+                             f"{i['pidor']}% пидор")
+        except telegram.error.BadRequest:
+            text_list.append(f"{i['member_id']} на {i['nice']}% красавчик и на "
+                             f"{i['pidor']}% пидор")
     text = '\n'.join(text_list)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
