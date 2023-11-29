@@ -5,7 +5,6 @@ import time
 import messages
 import stickers
 import peewee
-from os import getenv
 from db_init import *
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
@@ -25,7 +24,7 @@ def create_user(chat_id, user_id):
     if is_user_in_chat:
         dbhandle.close()
         return False
-    Members.create(chat_id=chat_id, member_id=user_id)
+    Members.create(chat_id=chat_id, member_id=user_id, coefficient=10)
     stats_of_user = 0
     pidor_stats_of_user = 0
     for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
@@ -63,12 +62,17 @@ def unreg_in_data(chat_id, user_id):
         return 'deleted'
 
 
-def get_random_id(chat_id, pidor_or_nice):
+def get_members_id_list(chat_id):
     dbhandle.connect()
     members = []
-    for l in Members.select().where(Members.chat_id == chat_id):
-        members.append(l.member_id)
+    for i in Members.select().where(Members.chat_id == chat_id):
+        members.append(i.member_id)
     dbhandle.close()
+    return members
+
+
+def get_random_id(chat_id, pidor_or_nice):
+    members = get_members_id_list(chat_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -79,7 +83,82 @@ def get_random_id(chat_id, pidor_or_nice):
             members.remove(immune_id)
     if members == []:
         return 'Nothing'
-    return random.choice(members)
+    chosen_member = random.choice(members)
+    update_coefficient_for_users(chat_id, chosen_member, pidor_or_nice)
+    return chosen_member
+
+
+def get_user_coefficient(chat_id, member_id, pidor_or_nice):
+    dbhandle.connect()
+    coefficient = -1
+    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
+        coefficient = i.coefficient
+    dbhandle.close()
+    if pidor_or_nice == 'nice':
+        return 20 - coefficient
+    if pidor_or_nice == 'pidor':
+
+        return coefficient
+
+
+def get_random_id_carmic(chat_id, pidor_or_nice):
+    users_and_weights = {}
+    members = get_members_id_list(chat_id)
+    if pidor_or_nice == 'pidor':
+        if is_not_time_expired(chat_id, 'current_nice'):
+            immune_id = get_current_user(chat_id, 'current_nice')['id']
+            members.remove(immune_id)
+        if members == []:
+            return 'Nothing'
+        for k in members:
+            users_and_weights[k] = get_user_coefficient(chat_id, k, 'pidor')
+    if pidor_or_nice == 'nice':
+        if is_not_time_expired(chat_id, 'current_pidor'):
+            immune_id = get_current_user(chat_id, 'current_pidor')['id']
+            members.remove(immune_id)
+        if members == []:
+            return 'Nothing'
+        for k in members:
+            users_and_weights[k] = get_user_coefficient(chat_id, k, 'nice')
+    users = list(users_and_weights.keys())
+    weights = list(users_and_weights.values())
+    chosen_member = random.choices(users, weights=weights, k=1)[0]
+    update_coefficient_for_users(chat_id, chosen_member, pidor_or_nice)
+    return chosen_member
+
+
+def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
+    members = get_members_id_list(chat_id)
+    members.remove(chosen_member)
+    dbhandle.connect()
+    current_coefficient_chosen = 10
+    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
+        current_coefficient_chosen = i.coefficient
+    if nice_or_pidor == 'nice':
+        new_coefficient_chosen = current_coefficient_chosen + 2
+    if nice_or_pidor == 'pidor':
+        new_coefficient_chosen = current_coefficient_chosen - 2
+    if new_coefficient_chosen >= 20:
+        new_coefficient_chosen = 20
+    if new_coefficient_chosen <= 0:
+        new_coefficient_chosen = 0
+    query = Members.update(coefficient=new_coefficient_chosen).where((Members.chat_id == chat_id) &
+                                                                     (Members.member_id == chosen_member))
+    query.execute()
+    for t in members:
+        current_coefficient_t = 10
+        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == t)):
+            current_coefficient_t = i.coefficient
+        if current_coefficient_t > 10:
+            new_coefficient_t = current_coefficient_t - 1
+        if current_coefficient_t < 10:
+            new_coefficient_t = current_coefficient_t + 1
+        if current_coefficient_t == 10:
+            new_coefficient_t = current_coefficient_t
+        query = Members.update(coefficient=new_coefficient_t).where((Members.chat_id == chat_id) &
+                                                                    (Members.member_id == t))
+        query.execute()
+    dbhandle.close()
 
 
 def update_pidor_stats(chat_id, pidor_id, stats_type):
@@ -198,6 +277,29 @@ def is_not_time_expired(chat_id, type_of_current):
     return current_timestamp > day_timestamp
 
 
+def add_chat_to_carmic_dices_in_db(chat_id):
+    if are_carmic_dices_enabled(chat_id) is False:
+        dbhandle.connect()
+        CarmicDicesEnabled.create(chat_id=chat_id)
+        dbhandle.close()
+
+
+def remove_chat_from_carmic_dices_in_db(chat_id):
+    if are_carmic_dices_enabled(chat_id):
+        dbhandle.connect()
+        CarmicDicesEnabled.delete().where(CarmicDicesEnabled.chat_id == chat_id)
+        dbhandle.close()
+
+
+def are_carmic_dices_enabled(chat_id):
+    dbhandle.connect()
+    carmic_dices_enabled = False
+    for i in CarmicDicesEnabled.select().where(CarmicDicesEnabled.chat_id == chat_id):
+        carmic_dices_enabled = True
+    dbhandle.close()
+    return carmic_dices_enabled
+
+
 def get_current_user(chat_id, current_dict):
     dbhandle.connect()
     current_user = {'id': 0, 'timestamp': 0}
@@ -248,7 +350,10 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except telegram.error.BadRequest:
             message = f'Пидор дня уже определён, это {current_pidor_id})'
     else:
-        pidor_id = get_random_id(chat_id, 'pidor')
+        if are_carmic_dices_enabled(chat_id):
+            pidor_id = get_random_id_carmic(chat_id, 'pidor')
+        else:
+            pidor_id = get_random_id(chat_id, 'pidor')
         if pidor_id == 'Nothing':
             await context.bot.send_message(chat_id=update.effective_chat.id, text='Невозможно выбрать пидора, список '
                                                                                   'кандидатов пуст')
@@ -289,7 +394,10 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except telegram.error.BadRequest:
             message = f'Красавчик дня уже определён, это {current_nice_id})'
     else:
-        nice_guy_id = get_random_id(chat_id, 'nice')
+        if are_carmic_dices_enabled(chat_id):
+            nice_guy_id = get_random_id_carmic(chat_id, 'nice')
+        else:
+            nice_guy_id = get_random_id(chat_id, 'nice')
         if nice_guy_id == 'Nothing':
             await context.bot.send_message(chat_id=update.effective_chat.id, text='Невозможно выбрать красавчика, '
                                                                                   'список кандидатов пуст')
@@ -368,22 +476,31 @@ async def pidor_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
     keyboard = [[
-            InlineKeyboardButton("Да", callback_data=f"Yes, {chat_id}"),
-            InlineKeyboardButton("Нет", callback_data="No"),
+            InlineKeyboardButton("Да", callback_data=f"resetstats Yes {chat_id}"),
+            InlineKeyboardButton("Нет", callback_data=f"resetstats No {chat_id}"),
         ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Точно сбросить статистику? Вернуть её будет нельзя, "
                                     "все забудут, кто был красавчиком", reply_markup=reply_markup)
 
 
-async def confirm_reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    if query.data == 'No':
-        await query.edit_message_text(text='Правильный выбор 👍')
-    else:
-        chat_id = int(query.data.split(" ")[1])
+async def confirm_dialogs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query.data
+    if query.startswith('resetstats') and (query.split(" ")[1] == 'No'):
+        await update.callback_query.edit_message_text(text='Правильный выбор 👍')
+    elif query.startswith('resetstats') and (query.split(" ")[1] == 'Yes'):
+        chat_id = int(query.split(" ")[2])
         reset_stats_data(chat_id)
-        await query.edit_message_text(text='Статистика очищена, начинаем с чистого листа🙈')
+        await update.callback_query.edit_message_text(text='Статистика очищена, начинаем с чистого листа🙈')
+    elif query.startswith('carma') and (query.split(" ")[1] == 'No'):
+        chat_id = query.split(" ")[2]
+        remove_chat_from_carmic_dices_in_db(chat_id)
+        await update.callback_query.edit_message_text(text='Кармические кубики отключены')
+    elif query.startswith('carma') and (query.split(" ")[1] == 'Yes'):
+        chat_id = query.split(" ")[2]
+        add_chat_to_carmic_dices_in_db(chat_id)
+        await update.callback_query.edit_message_text(text='Кармические кубики включены')
+
 
 
 async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -422,6 +539,17 @@ async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def switch_on_carmic_dices_in_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.message.chat_id
+    keyboard = [[
+            InlineKeyboardButton("Да", callback_data=f"carma Yes {chat_id}"),
+            InlineKeyboardButton("Нет", callback_data=f"carma No {chat_id}"),
+        ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать"
+                                    "красавчиками, а у красавчиков - стать пидорами", reply_markup=reply_markup)
+
+
 if __name__ == '__main__':
     try:
         dbhandle.connect()
@@ -442,8 +570,9 @@ if __name__ == '__main__':
     pidor_stats_handler = CommandHandler('pidorstats', pidor_stats)
     reset_stats_handler = CommandHandler('resetstats', reset_stats)
     percent_stats_handler = CommandHandler('percentstats', percent_stats)
+    switch_on_carmic_dices_in_chat_handler = CommandHandler('carmicdices', switch_on_carmic_dices_in_chat)
     application.add_handlers([reg_handler, unreg_handler, pidor_handler, run_handler, stats_handler,
                               pidor_stats_handler, reset_stats_handler, percent_stats_handler,
-                              CallbackQueryHandler(confirm_reset_stats)])
+                              switch_on_carmic_dices_in_chat_handler, CallbackQueryHandler(confirm_dialogs)])
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, member_left))
     application.run_polling()

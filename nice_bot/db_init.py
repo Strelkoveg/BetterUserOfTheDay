@@ -20,6 +20,7 @@ class Members(Model):
 
     chat_id = BigIntegerField()
     member_id = BigIntegerField()
+    coefficient = IntegerField()
 
 
 class PidorStats(Model):
@@ -60,3 +61,10 @@ class CurrentNice(Model):
     chat_id = BigIntegerField()
     member_id = BigIntegerField()
     timestamp = BigIntegerField()
+
+
+class CarmicDicesEnabled(Model):
+    class Meta:
+        database = dbhandle
+        order_by = ('chat_id',)
+    chat_id = BigIntegerField()
