@@ -21,6 +21,8 @@ class Members(Model):
     chat_id = BigIntegerField()
     member_id = BigIntegerField()
     coefficient = IntegerField()
+    full_name = CharField()
+    nick_name = CharField()
 
 
 class PidorStats(Model):

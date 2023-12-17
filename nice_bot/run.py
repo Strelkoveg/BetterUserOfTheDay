@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 
-def create_user(chat_id, user_id):
+def create_user(chat_id, user_id, user_full_name, user_nickname):
     dbhandle.connect()
     is_user_in_chat = False
     for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
@@ -25,7 +25,8 @@ def create_user(chat_id, user_id):
     if is_user_in_chat:
         dbhandle.close()
         return False
-    Members.create(chat_id=chat_id, member_id=user_id, coefficient=10)
+    Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, full_name=user_full_name,
+                   nick_name=user_nickname)
     stats_of_user = 0
     pidor_stats_of_user = 0
     for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
@@ -315,15 +316,42 @@ def get_current_user(chat_id, current_dict):
     return current_user
 
 
+def set_full_name_and_nickname_in_db(chat_id, member_id, fullname, nickname):
+    dbhandle.connect()
+    Members.update(full_name=fullname, nick_name=nickname).where((Members.chat_id == chat_id)
+                                                                 & (Members.member_id == member_id)).execute()
+    dbhandle.close()
+
+
+def get_full_name_from_db(chat_id, member_id):
+    dbhandle.connect()
+    full_name = 'No full name found'
+    for k in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
+        full_name = k.full_name
+    dbhandle.close()
+    return full_name
+
+
+def get_nickname_from_db(chat_id, member_id):
+    dbhandle.connect()
+    nick_name = 'No nickname found'
+    for k in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
+        nick_name = k.nick_name
+    dbhandle.close()
+    return nick_name
+
+
 async def reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     reg_member = update.message.from_user.id
     user_info = await context.bot.get_chat_member(chat_id, reg_member)
-    success_or_not = create_user(chat_id, reg_member)
+    user_full_name = user_info.user.full_name
+    user_nickname = user_info.user.username
+    success_or_not = create_user(chat_id, reg_member, user_full_name, user_nickname)
     if success_or_not:
-        message = f"{user_info.user.full_name}, ты в игре"
+        message = f"{user_full_name}, ты в игре"
     else:
-        message = f"{user_info.user.full_name}, зачем тебе регаться ещё раз?"
+        message = f"{user_full_name}, зачем тебе регаться ещё раз?"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
 
@@ -335,8 +363,13 @@ async def unreg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message == 'Пользователь не найден':
         await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
     else:
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
+        try:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
+        except telegram.error.BadRequest:
+            user_full_name = get_full_name_from_db(chat_id, reg_member)
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=f'{user_full_name} c позором бежал, но статистика всё помнит')
 
 
 async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -346,9 +379,13 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current_pidor_id = get_current_user(chat_id, 'current_pidor')['id']
         try:
             user_info = await context.bot.get_chat_member(chat_id, current_pidor_id)
-            message = f'Пидор дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+            user_full_name = user_info.user.full_name
+            user_nickname = user_info.user.username
+            set_full_name_and_nickname_in_db(chat_id, current_pidor_id, user_full_name, user_nickname)
+            message = f'Пидор дня уже определён, это {user_full_name} (@{user_nickname})'
         except telegram.error.BadRequest:
-            message = f'Пидор дня уже определён, это {current_pidor_id})'
+            user_full_name_from_db = get_full_name_from_db(chat_id, current_pidor_id)
+            message = f'Пидор дня уже определён, это {user_full_name_from_db})'
     else:
         if are_carmic_dices_enabled(chat_id):
             pidor_id = get_random_id_carmic(chat_id, 'pidor')
@@ -361,9 +398,14 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pidor_count = update_pidor_stats(chat_id, pidor_id, 'pidor_stats')
         try:
             user_info = await context.bot.get_chat_member(chat_id, pidor_id)
-            message = f'Пидор дня - {user_info.user.full_name}  (@{user_info.user.username})'
+            user_full_name = user_info.user.full_name
+            user_nickname = user_info.user.username
+            set_full_name_and_nickname_in_db(chat_id, pidor_id, user_full_name, user_nickname)
+            message = f'Пидор дня - {user_full_name}  (@{user_nickname})'
         except telegram.error.BadRequest:
-            message = f'Пидор дня - {pidor_id})'
+            user_full_name_from_db = get_full_name_from_db(chat_id, pidor_id)
+            user_nickname_from_db = get_nickname_from_db(chat_id, pidor_id)
+            message = f'Пидор дня - {user_full_name_from_db} (@{user_nickname_from_db}))'
         update_current(chat_id, 'current_pidor', pidor_id)
         for i in messages.PIDOR_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -390,9 +432,13 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current_nice_id = get_current_user(chat_id, 'current_nice')['id']
         try:
             user_info = await context.bot.get_chat_member(chat_id, current_nice_id)
-            message = f'Красавчик дня уже определён, это {user_info.user.full_name} (@{user_info.user.username})'
+            user_full_name = user_info.user.full_name
+            user_nickname = user_info.user.username
+            set_full_name_and_nickname_in_db(chat_id, current_nice_id, user_full_name, user_nickname)
+            message = f'Красавчик дня уже определён, это {user_full_name} (@{user_nickname})'
         except telegram.error.BadRequest:
-            message = f'Красавчик дня уже определён, это {current_nice_id})'
+            user_full_name_from_db = get_full_name_from_db(chat_id, current_nice_id)
+            message = f'Красавчик дня уже определён, это {user_full_name_from_db})'
     else:
         if are_carmic_dices_enabled(chat_id):
             nice_guy_id = get_random_id_carmic(chat_id, 'nice')
@@ -405,9 +451,14 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pidor_count = update_pidor_stats(chat_id, nice_guy_id, 'stats')
         try:
             user_info = await context.bot.get_chat_member(chat_id, nice_guy_id)
-            message = f'Красавчик дня - {user_info.user.full_name} (@{user_info.user.username})'
+            user_full_name = user_info.user.full_name
+            user_nickname = user_info.user.username
+            set_full_name_and_nickname_in_db(chat_id, nice_guy_id, user_full_name, user_nickname)
+            message = f'Красавчик дня - {user_full_name}  (@{user_nickname})'
         except telegram.error.BadRequest:
-            message = f'Красавчик дня - {nice_guy_id})'
+            user_full_name_from_db = get_full_name_from_db(chat_id, pidor_id)
+            user_nickname_from_db = get_nickname_from_db(chat_id, pidor_id)
+            message = f'Красавчик дня - {user_full_name_from_db} (@{user_nickname_from_db}))'
         update_current(chat_id, 'current_nice', nice_guy_id)
         for i in messages.NICE_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
@@ -438,9 +489,14 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for item in statistics.items():
             try:
                 user_info = await context.bot.get_chat_member(chat_id, item[0])
-                usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
+                user_full_name = user_info.user.full_name
+                user_nickname = user_info.user.username
+                set_full_name_and_nickname_in_db(chat_id, item[0], user_full_name, user_nickname)
+                usernames.append(f'{user_full_name} (@{user_nickname})')
             except telegram.error.BadRequest:
-                usernames.append(str(item[0]))
+                user_full_name_from_db = get_full_name_from_db(chat_id, item[0])
+                user_nickname_from_db = get_nickname_from_db(chat_id, item[0])
+                usernames.append(f'{user_full_name_from_db} (@{user_nickname_from_db})')
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры красавчик дня:']
@@ -461,9 +517,14 @@ async def pidor_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for item in statistics.items():
             try:
                 user_info = await context.bot.get_chat_member(chat_id, item[0])
+                user_full_name = user_info.user.full_name
+                user_nickname = user_info.user.username
+                set_full_name_and_nickname_in_db(chat_id, item[0], user_full_name, user_nickname)
                 usernames.append(f'{user_info.user.full_name} (@{user_info.user.username})')
             except telegram.error.BadRequest:
-                usernames.append(str(item[0]))
+                user_full_name_from_db = get_full_name_from_db(chat_id, item[0])
+                user_nickname_from_db = get_nickname_from_db(chat_id, item[0])
+                usernames.append(f'{user_full_name_from_db} (@{user_nickname_from_db})')
             counts.append(item[1])
         user_stats = dict(zip(usernames, counts))
         text_list = ['Результаты игры пидор дня:']
@@ -502,21 +563,24 @@ async def confirm_dialogs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.callback_query.edit_message_text(text='Кармические кубики включены')
 
 
-
 async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     reg_member = update.message.left_chat_member.id
     try:
-        user_info_full_name = await context.bot.get_chat_member(chat_id, reg_member).user.full_name
+        user_info = await context.bot.get_chat_member(chat_id, reg_member)
+        full_name = user_info.user.full_name
+        nickname = user_info.user.username
+        set_full_name_and_nickname_in_db(chat_id, reg_member, full_name, nickname)
     except telegram.error.BadRequest:
-        user_info_full_name = str(reg_member)
+        full_name = get_full_name_from_db(chat_id, reg_member)
+        full_name = str(reg_member)
     message = unreg_in_data(chat_id, reg_member)
     if message == 'Пользователь не найден':
         await context.bot.send_message(chat_id=update.effective_chat.id, text='Мы не будем по нему скучать, '
                                                                               'ведь он не был в игре🤡')
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=f'{user_info_full_name} c позором бежал, но статистика всё помнит')
+                                       text=f'{full_name} c позором бежал, но статистика всё помнит')
 
 
 async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -530,10 +594,15 @@ async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i in sorted_stats_list:
         try:
             user_info = await context.bot.get_chat_member(chat_id, i['member_id'])
-            text_list.append(f"{user_info.user.full_name} (@{user_info.user.username}) на {i['nice']}% красавчик и на "
+            user_full_name = user_info.user.full_name
+            user_nickname = user_info.user.username
+            set_full_name_and_nickname_in_db(chat_id, i['member_id'], user_full_name, user_nickname)
+            text_list.append(f"{user_full_name} (@{user_nickname}) на {i['nice']}% красавчик и на "
                              f"{i['pidor']}% пидор")
         except telegram.error.BadRequest:
-            text_list.append(f"{i['member_id']} на {i['nice']}% красавчик и на "
+            user_full_name_from_db = get_full_name_from_db(chat_id, i['member_id'])
+            user_nickname_from_db = get_nickname_from_db(chat_id, i['member_id'])
+            text_list.append(f"{user_full_name_from_db} (@{user_nickname_from_db}) на {i['nice']}% красавчик и на "
                              f"{i['pidor']}% пидор")
     text = '\n'.join(text_list)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
