@@ -2,6 +2,7 @@ import logging
 import random
 import datetime
 import time
+import telegram.error
 import messages
 import stickers
 import peewee
@@ -95,10 +96,9 @@ def get_user_coefficient(chat_id, member_id, pidor_or_nice):
         coefficient = i.coefficient
     dbhandle.close()
     if pidor_or_nice == 'nice':
-        return 20 - coefficient
-    if pidor_or_nice == 'pidor':
-
         return coefficient
+    if pidor_or_nice == 'pidor':
+        return 20 - coefficient
 
 
 def get_random_id_carmic(chat_id, pidor_or_nice):
