@@ -456,8 +456,8 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
             set_full_name_and_nickname_in_db(chat_id, nice_guy_id, user_full_name, user_nickname)
             message = f'Красавчик дня - {user_full_name}  (@{user_nickname})'
         except telegram.error.BadRequest:
-            user_full_name_from_db = get_full_name_from_db(chat_id, pidor_id)
-            user_nickname_from_db = get_nickname_from_db(chat_id, pidor_id)
+            user_full_name_from_db = get_full_name_from_db(chat_id, nice_guy_id)
+            user_nickname_from_db = get_nickname_from_db(chat_id, nice_guy_id)
             message = f'Красавчик дня - {user_full_name_from_db} (@{user_nickname_from_db}))'
         update_current(chat_id, 'current_nice', nice_guy_id)
         for i in messages.NICE_MESSAGES:
