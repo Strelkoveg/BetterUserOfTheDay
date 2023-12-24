@@ -627,6 +627,7 @@ if __name__ == '__main__':
         Stats.create_table()
         CurrentPidor.create_table()
         CurrentNice.create_table()
+        CarmicDicesEnabled.create_table()
         dbhandle.close()
     except peewee.InternalError as px:
         print(str(px))
