@@ -131,6 +131,12 @@ def get_random_id_carmic(chat_id, pidor_or_nice):
 def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
     members = get_members_id_list(chat_id)
     members.remove(chosen_member)
+    if nice_or_pidor == 'nice':
+        if is_not_time_expired(chat_id, 'current_pidor'):
+            members.remove(get_current_user(chat_id, 'current_pidor')['id'])
+    if nice_or_pidor == 'pidor':
+        if is_not_time_expired(chat_id, 'current_nice'):
+            members.remove(get_current_user(chat_id, 'current_nice')['id'])
     dbhandle.connect()
     current_coefficient_chosen = 10
     for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
