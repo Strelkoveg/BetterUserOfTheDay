@@ -621,7 +621,7 @@ async def switch_on_carmic_dices_in_chat(update: Update, context: ContextTypes.D
             InlineKeyboardButton("Нет", callback_data=f"carma No {chat_id}"),
         ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать"
+    await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать "
                                     "красавчиками, а у красавчиков - стать пидорами", reply_markup=reply_markup)
 
 
