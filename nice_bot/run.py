@@ -64,17 +64,8 @@ def unreg_in_data(chat_id, user_id):
         return 'deleted'
 
 
-def get_members_id_list(chat_id):
-    dbhandle.connect()
-    members = []
-    for i in Members.select().where(Members.chat_id == chat_id):
-        members.append(i.member_id)
-    dbhandle.close()
-    return members
-
-
 def get_random_id(chat_id, pidor_or_nice):
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -90,6 +81,13 @@ def get_random_id(chat_id, pidor_or_nice):
     return chosen_member
 
 
+def get_all_chat_ids():
+    dbhandle.connect()
+    chat_ids = [i.chat_id for i in Members.select(Members.chat_id).distinct()]
+    dbhandle.close()
+    return chat_ids
+
+
 def get_user_coefficient(chat_id, member_id, pidor_or_nice):
     dbhandle.connect()
     coefficient = -1
@@ -97,14 +95,14 @@ def get_user_coefficient(chat_id, member_id, pidor_or_nice):
         coefficient = i.coefficient
     dbhandle.close()
     if pidor_or_nice == 'nice':
-        return coefficient
-    if pidor_or_nice == 'pidor':
         return 20 - coefficient
+    if pidor_or_nice == 'pidor':
+        return coefficient
 
 
 def get_random_id_carmic(chat_id, pidor_or_nice):
     users_and_weights = {}
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -129,7 +127,7 @@ def get_random_id_carmic(chat_id, pidor_or_nice):
 
 
 def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     members.remove(chosen_member)
     if nice_or_pidor == 'nice':
         if is_not_time_expired(chat_id, 'current_pidor'):
@@ -207,10 +205,8 @@ def get_pidor_stats(chat_id, stats_type):
 
 
 def get_all_members(chat_id):
-    members = []
     dbhandle.connect()
-    for i in Members.select(Members.member_id).where(Members.chat_id == chat_id):
-        members.append(i.member_id)
+    members = [i.member_id for i in Members.select(Members.member_id).where(Members.chat_id == chat_id)]
     dbhandle.close()
     return members
 
@@ -624,6 +620,19 @@ async def switch_on_carmic_dices_in_chat(update: Update, context: ContextTypes.D
     await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать "
                                     "красавчиками, а у красавчиков - стать пидорами", reply_markup=reply_markup)
 
+
+async def send_message_to_another_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id != 326053639:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='Это команду может выполнить только автор бота')
+    else:
+        chat_ids = get_all_chat_ids()
+        for i in chat_ids:
+            try:
+                await context.bot.send_message(chat_id=i, text=messages.WARM_UP_MESSAGE)
+            except telegram.error.Forbidden:
+                pass
+            except telegram.error.BadRequest:
+                print(f'chat {i} not found')
 
 if __name__ == '__main__':
     try:
