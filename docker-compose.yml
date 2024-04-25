@@ -19,9 +19,7 @@ services:
           cpus: '0.400'
           memory: 256M
   nicebot:
-    image: ghcr.io/darkhenk13/telegram_bot_torrent:master
-    volumes:
-      - ./nice_bot:/usr/src/app
+    image: ghcr.io/darkhenk13/betteruseroftheday:CI
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       DB_USER: ${DB_USER}
