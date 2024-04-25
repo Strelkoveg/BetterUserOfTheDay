@@ -3,10 +3,10 @@ services:
     image: mysql:8.1
     volumes:
       - ./data:/var/lib/mysql
-      #- ./setup_db/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+#      - ./setup_db/setup.sql:/docker-entrypoint-initdb.d/setup.sql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-     command:
+    command:
       - --skip-performance-schema
     healthcheck:
       test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
@@ -20,20 +20,20 @@ services:
           memory: 256M
   nicebot:
     image: ghcr.io/darkhenk13/telegram_bot_torrent:master
-#    volumes:
-#      - ./nice_bot:/usr/src/app
+    volumes:
+      - ./nice_bot:/usr/src/app
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_HOST: ${DB_HOST}
+    depends_on:
+      database:
+        condition: service_healthy
     restart: always
     deploy:
       resources:
         limits:
           cpus: '0.250'
           memory: 250M
-    depends_on:
-      database:
-        condition: service_healthy
