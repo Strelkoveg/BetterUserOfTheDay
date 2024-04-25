@@ -1,5 +1,8 @@
 FROM python:3.11
-WORKDIR /usr/src/app
-COPY requirements.txt ./
+
+COPY . .
+
+#WORKDIR /usr/src/app
+#COPY requirements.txt ./
 RUN pip install -r requirements.txt
-CMD python run.py
+CMD ["python", "run.py"]
