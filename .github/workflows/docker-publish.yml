@@ -68,7 +68,7 @@ jobs:
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
   deploy:
-    #needs: build
+    needs: build
     name: Deploy to VPS Server
     runs-on: ubuntu-latest
     steps:
