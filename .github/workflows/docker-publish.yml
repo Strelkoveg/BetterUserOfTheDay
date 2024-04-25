@@ -103,5 +103,5 @@ jobs:
           port: ${{ secrets.PORT_SSH }}
           script: |
             cd ${{ secrets.REMOTE_TARGET }}
-            docker pull docker pull ghcr.io/darkhenk13/betteruseroftheday:sha256-606174ce44f9d23dd59898a17d97217f44ee0e931fa67e0d3512f44e537dfb09.sig
+            docker pull ghcr.io/darkhenk13/betteruseroftheday:sha256-606174ce44f9d23dd59898a17d97217f44ee0e931fa67e0d3512f44e537dfb09.sig
             docker compose --env-file .env -f ./docker-compose.yaml up -d
