@@ -21,6 +21,7 @@ class Members(Model):
     chat_id = BigIntegerField()
     member_id = BigIntegerField()
     coefficient = IntegerField()
+    pidor_coefficient = IntegerField()
     full_name = CharField()
     nick_name = CharField()
 
@@ -69,4 +70,5 @@ class CarmicDicesEnabled(Model):
     class Meta:
         database = dbhandle
         order_by = ('chat_id',)
+
     chat_id = BigIntegerField()

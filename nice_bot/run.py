@@ -25,7 +25,7 @@ def create_user(chat_id, user_id, user_full_name, user_nickname):
     if is_user_in_chat:
         dbhandle.close()
         return False
-    Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, full_name=user_full_name,
+    Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name,
                    nick_name=user_nickname)
     stats_of_user = 0
     pidor_stats_of_user = 0
@@ -64,17 +64,22 @@ def unreg_in_data(chat_id, user_id):
         return 'deleted'
 
 
-def get_members_id_list(chat_id):
+def get_all_chat_ids():
     dbhandle.connect()
-    members = []
-    for i in Members.select().where(Members.chat_id == chat_id):
-        members.append(i.member_id)
+    chat_ids = [i.chat_id for i in Members.select(Members.chat_id).distinct()]
+    dbhandle.close()
+    return chat_ids
+
+
+def get_all_members(chat_id):
+    dbhandle.connect()
+    members = [i.member_id for i in Members.select(Members.member_id).where(Members.chat_id == chat_id)]
     dbhandle.close()
     return members
 
 
 def get_random_id(chat_id, pidor_or_nice):
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -93,18 +98,19 @@ def get_random_id(chat_id, pidor_or_nice):
 def get_user_coefficient(chat_id, member_id, pidor_or_nice):
     dbhandle.connect()
     coefficient = -1
-    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
-        coefficient = i.coefficient
-    dbhandle.close()
     if pidor_or_nice == 'nice':
-        return coefficient
+        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
+            coefficient = i.coefficient
     if pidor_or_nice == 'pidor':
-        return 20 - coefficient
+        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == member_id)):
+            coefficient = i.pidor_coefficient
+    dbhandle.close()
+    return coefficient
 
 
 def get_random_id_carmic(chat_id, pidor_or_nice):
     users_and_weights = {}
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     if pidor_or_nice == 'pidor':
         if is_not_time_expired(chat_id, 'current_nice'):
             immune_id = get_current_user(chat_id, 'current_nice')['id']
@@ -128,8 +134,28 @@ def get_random_id_carmic(chat_id, pidor_or_nice):
     return chosen_member
 
 
+def check_coefficient_for_chosen(coefficient):
+    if coefficient >= 20:
+        new_coefficient_chosen = 20
+    if coefficient <= 0:
+        new_coefficient_chosen = 0
+    else:
+        new_coefficient_chosen = coefficient
+    return new_coefficient_chosen
+
+
+def check_coefficient_for_others(coefficient):
+    if coefficient > 10:
+        new_nice_coefficient = coefficient - 1
+    if coefficient < 10:
+        new_nice_coefficient = coefficient + 1
+    if coefficient == 10:
+        new_nice_coefficient = coefficient
+    return new_nice_coefficient
+
+
 def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
-    members = get_members_id_list(chat_id)
+    members = get_all_members(chat_id)
     members.remove(chosen_member)
     if nice_or_pidor == 'nice':
         if is_not_time_expired(chat_id, 'current_pidor'):
@@ -139,32 +165,37 @@ def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
             members.remove(get_current_user(chat_id, 'current_nice')['id'])
     dbhandle.connect()
     current_coefficient_chosen = 10
-    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
-        current_coefficient_chosen = i.coefficient
     if nice_or_pidor == 'nice':
-        new_coefficient_chosen = current_coefficient_chosen + 2
-    if nice_or_pidor == 'pidor':
-        new_coefficient_chosen = current_coefficient_chosen - 2
-    if new_coefficient_chosen >= 20:
-        new_coefficient_chosen = 20
-    if new_coefficient_chosen <= 0:
-        new_coefficient_chosen = 0
-    query = Members.update(coefficient=new_coefficient_chosen).where((Members.chat_id == chat_id) &
-                                                                     (Members.member_id == chosen_member))
-    query.execute()
-    for t in members:
-        current_coefficient_t = 10
-        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == t)):
-            current_coefficient_t = i.coefficient
-        if current_coefficient_t > 10:
-            new_coefficient_t = current_coefficient_t - 1
-        if current_coefficient_t < 10:
-            new_coefficient_t = current_coefficient_t + 1
-        if current_coefficient_t == 10:
-            new_coefficient_t = current_coefficient_t
-        query = Members.update(coefficient=new_coefficient_t).where((Members.chat_id == chat_id) &
-                                                                    (Members.member_id == t))
+        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
+            current_coefficient_chosen = i.coefficient
+        new_coefficient_chosen = check_coefficient_for_chosen(current_coefficient_chosen - 2)
+        query = Members.update(coefficient=new_coefficient_chosen).where((Members.chat_id == chat_id) &
+                                                                         (Members.member_id == chosen_member))
         query.execute()
+    if nice_or_pidor == 'pidor':
+        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
+            current_coefficient_chosen = i.coefficient
+        new_coefficient_chosen = check_coefficient_for_chosen(current_coefficient_chosen - 2)
+        query = Members.update(pidor_coefficient=new_coefficient_chosen).where((Members.chat_id == chat_id) &
+                                                                               (Members.member_id == chosen_member))
+        query.execute()
+    for t in members:
+        if nice_or_pidor == 'nice':
+            current_nice_coefficient = 10
+            for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == t)):
+                current_nice_coefficient = i.coefficient
+            new_nice_coefficient = check_coefficient_for_others(current_nice_coefficient)
+            query = Members.update(coefficient=new_nice_coefficient).where((Members.chat_id == chat_id) &
+                                                                       (Members.member_id == t))
+            query.execute()
+        if nice_or_pidor == 'pidor':
+            current_pidor_coefficient = 10
+            for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == t)):
+                current_pidor_coefficient = i.coefficient
+            new_pidor_coefficient = check_coefficient_for_others(current_pidor_coefficient)
+            query = Members.update(pidor_coefficient=new_pidor_coefficient).where((Members.chat_id == chat_id) &
+                                                                       (Members.member_id == t))
+            query.execute()
     dbhandle.close()
 
 
@@ -204,15 +235,6 @@ def get_pidor_stats(chat_id, stats_type):
         return 'Ни один пользователь не зарегистрирован, статистики нет'
     else:
         return stats
-
-
-def get_all_members(chat_id):
-    members = []
-    dbhandle.connect()
-    for i in Members.select(Members.member_id).where(Members.chat_id == chat_id):
-        members.append(i.member_id)
-    dbhandle.close()
-    return members
 
 
 def get_user_percentage_nice_pidor(chat_id, member_id):
@@ -371,11 +393,11 @@ async def unreg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         try:
             await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
+                                            text=f'{user_info.user.full_name} c позором бежал, но статистика всё помнит')
         except telegram.error.BadRequest:
             user_full_name = get_full_name_from_db(chat_id, reg_member)
             await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text=f'{user_full_name} c позором бежал, но статистика всё помнит')
+                                            text=f'{user_full_name} c позором бежал, но статистика всё помнит')
 
 
 async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -421,7 +443,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pidor_count == 10:
             congratulations = messages.TEN_TIMES
         if pidor_count == 50:
-            congratulations = messages.FIFTEEN_TIMES_TIMES
+            congratulations = messages.FIFTEEN_TIMES
         if pidor_count == 100:
             congratulations = messages.HUNDRED_TIMES
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
@@ -621,7 +643,7 @@ async def switch_on_carmic_dices_in_chat(update: Update, context: ContextTypes.D
             InlineKeyboardButton("Нет", callback_data=f"carma No {chat_id}"),
         ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать"
+    await update.message.reply_text("Включить кармические кубики? Если они включены, у пидоров больше шансов стать "
                                     "красавчиками, а у красавчиков - стать пидорами", reply_markup=reply_markup)
 
 
