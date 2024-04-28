@@ -375,7 +375,10 @@ async def reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_info = await context.bot.get_chat_member(chat_id, reg_member)
     user_full_name = user_info.user.full_name
     user_nickname = user_info.user.username
+    if user_nickname is None:
+        user_nickname = str(reg_member) + 'nonickname'
     success_or_not = create_user(chat_id, reg_member, user_full_name, user_nickname)
+
     if success_or_not:
         message = f"{user_full_name}, ты в игре"
     else:
