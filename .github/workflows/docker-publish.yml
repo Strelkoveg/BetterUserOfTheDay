@@ -4,10 +4,10 @@ on:
   schedule:
     - cron: '27 11 * * *'
   push:
-    branches: [ "CI_Sync_fix" ]
+    branches: [ "master" ]
     tags: [ v* ]
   pull_request:
-    branches: [ "CI_Sync_fix" ]
+    branches: [ "master" ]
 
 env:
   REGISTRY: ghcr.io
@@ -107,5 +107,5 @@ jobs:
           port: ${{ secrets.PORT_SSH }}
           script: |
             cd ${{ secrets.REMOTE_TARGET }}
-            docker pull ghcr.io/darkhenk13/betteruseroftheday:CI_Sync_fix
+            docker pull ghcr.io/darkhenk13/betteruseroftheday:master
             docker compose --env-file .env -f ./docker-compose.yml up -d

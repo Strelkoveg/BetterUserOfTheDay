@@ -27,9 +27,8 @@ def create_user(chat_id, user_id, user_full_name, user_nickname):
             dbhandle.close()
             return False
 
-        member_create = Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name,
+        Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name,
                        nick_name=user_nickname)
-        member_create()
         stats_of_user = 0
         pidor_stats_of_user = 0
         for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
@@ -504,6 +503,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             congratulations = messages.FIFTEEN_TIMES
         if pidor_count == 100:
             congratulations = messages.HUNDRED_TIMES
+    print(congratulations)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
