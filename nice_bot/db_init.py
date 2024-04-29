@@ -72,3 +72,14 @@ class CarmicDicesEnabled(Model):
         order_by = ('chat_id',)
 
     chat_id = BigIntegerField()
+
+
+class PidorStickers(Model):
+    class Meta:
+        database = dbhandle
+        order_by = ('chat_id',)
+
+    chat_id = BigIntegerField()
+    enable = BooleanField()
+
+

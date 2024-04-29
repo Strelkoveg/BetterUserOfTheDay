@@ -4,7 +4,7 @@ import datetime
 import time
 import telegram.error
 import messages
-import stickers
+import stickers_list
 import peewee
 from db_init import *
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -460,6 +460,10 @@ async def unreg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     congratulations = ""
+    pidor_count = ""
+
+    sticker = True
+
     if is_not_time_expired(chat_id, 'current_pidor'):
         current_pidor_id = get_current_user(chat_id, 'current_pidor')['id']
         try:
@@ -472,6 +476,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_full_name_from_db = get_full_name_from_db(chat_id, current_pidor_id)
             message = f'Пидор дня уже определён, это {user_full_name_from_db})'
     else:
+        func = True
         if are_carmic_dices_enabled(chat_id):
             pidor_id = get_random_id_carmic(chat_id, 'pidor')
         else:
@@ -495,20 +500,72 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i in messages.PIDOR_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
             time.sleep(1)
-        if pidor_count == 1:
-            congratulations = messages.PIDOR_1_TIME
-        if pidor_count == 10:
-            congratulations = messages.TEN_TIMES
-        if pidor_count == 50:
-            congratulations = messages.FIFTEEN_TIMES
-        if pidor_count == 100:
-            congratulations = messages.HUNDRED_TIMES
-    print(congratulations)
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-    if congratulations != "":
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
-        await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers.BILLY_TEAR_OFF_VEST)
+
+    if sticker == True:
+        congratulations = pidor_count_func(pidor_count)
+        result_sticker = pidors_stickers()
+        if congratulations != "":
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
+            await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                           sticker=result_sticker)
+        else:
+            await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                           sticker=result_sticker)
+    else:
+        congratulations = pidor_count_func(pidor_count)
+        # original
+        if congratulations != "":
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
+            await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                           sticker=stickers_list.DRINK_CHAMPAGNE)
+        # original
+
+    res = get_stickers_enable(chat_id)
+    print(res)
+
+def get_stickers_enable(chat_id):
+        dbhandle.connect()
+        result = ''
+        for pt in PidorStickers.select().where(PidorStickers.chat_id == chat_id):
+            result = pt.enable
+        if result == True:
+            return True
+        else:
+            return False
+        dbhandle.close()
+
+
+async def stickers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    keyboard = [[
+        InlineKeyboardButton("Да", callback_data=f"stickers Yes {chat_id}"),
+        InlineKeyboardButton("Нет", callback_data=f"stickers No {chat_id}"),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Хочешь включить или отключить рандомные стикеры?", reply_markup=reply_markup)
+
+def pidor_count_func(pidor_count):
+    if pidor_count == 1:
+        congratulations = messages.PIDOR_1_TIME
+    if pidor_count == 10:
+        congratulations = messages.TEN_TIMES
+    if pidor_count == 50:
+        congratulations = messages.FIFTEEN_TIMES
+    if pidor_count == 100:
+        congratulations = messages.HUNDRED_TIMES
+    else:
+        congratulations = ""
+    return congratulations
+
+
+def pidors_stickers():
+    return random.choice(stickers_list.CUSTOM_STICKERS_PIDOR)
+
+def handsome_stickers():
+    handsome = random.choice(stickers_list.CUSTOM_STICKERS_HANDSOME)
+    return handsome
 
 
 async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -561,7 +618,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if congratulations != "":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
         await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers.DRINK_CHAMPAGNE)
+                                           sticker=stickers_list.DRINK_CHAMPAGNE)
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -647,7 +704,33 @@ async def confirm_dialogs(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         chat_id = query.split(" ")[2]
         add_chat_to_carmic_dices_in_db(chat_id)
         await update.callback_query.edit_message_text(text='Кармические кубики включены')
+    elif query.startswith('stickers') and (query.split(" ")[1] == 'Yes'):
+        chat_id = query.split(" ")[2]
+        status_stick = enable_stickers(chat_id)
+        await update.callback_query.edit_message_text(text=status_stick)
+    elif query.startswith('stickers') and (query.split(" ")[1] == 'No'):
+        await update.callback_query.edit_message_text(text='Правильный выбор 👍')
 
+def enable_stickers(chat_id):
+    try:
+        dbhandle.connect()
+        result = ''
+        for pt in PidorStickers.select().where(PidorStickers.chat_id == chat_id):
+            result = pt.enable
+        if result == True:
+            query = PidorStickers.delete().where(PidorStickers.chat_id == chat_id)
+            query.execute()
+            dbhandle.close()
+            status_stickers = 'Отключены кастомные метрики'
+        else:
+            PidorStickers.create(chat_id=chat_id, enable=True)
+            dbhandle.close()
+            status_stickers = 'Включены кастомные стикеры'
+        return status_stickers
+    except Exception:
+        dbhandle.close()
+        status_stickers = 'Что-то пошло не так..'
+        return status_stickers
 
 async def member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
@@ -714,6 +797,7 @@ if __name__ == '__main__':
         CurrentPidor.create_table()
         CurrentNice.create_table()
         CarmicDicesEnabled.create_table()
+        PidorStickers.create_table()
         dbhandle.close()
     except peewee.InternalError as px:
         print(str(px))
@@ -727,9 +811,11 @@ if __name__ == '__main__':
     pidor_stats_handler = CommandHandler('pidorstats', pidor_stats)
     reset_stats_handler = CommandHandler('resetstats', reset_stats)
     percent_stats_handler = CommandHandler('percentstats', percent_stats)
+    stickers_handler = CommandHandler('stickers', stickers)
+
     switch_on_carmic_dices_in_chat_handler = CommandHandler('carmicdices', switch_on_carmic_dices_in_chat)
     application.add_handlers([reg_handler, unreg_handler, pidor_handler, run_handler, stats_handler,
-                              pidor_stats_handler, reset_stats_handler, percent_stats_handler,
+                              pidor_stats_handler, reset_stats_handler, percent_stats_handler, stickers_handler,
                               switch_on_carmic_dices_in_chat_handler, CallbackQueryHandler(confirm_dialogs)])
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, member_left))
     application.run_polling()
