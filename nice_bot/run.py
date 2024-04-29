@@ -717,6 +717,7 @@ if __name__ == '__main__':
         dbhandle.close()
     except peewee.InternalError as px:
         print(str(px))
+        dbhandle.close()
     application = ApplicationBuilder().token(getenv('BOT_TOKEN')).build()
     reg_handler = CommandHandler('reg', reg)
     unreg_handler = CommandHandler('unreg', unreg)
