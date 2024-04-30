@@ -18,43 +18,41 @@ logging.basicConfig(
 
 
 def create_user(chat_id, user_id, user_full_name, user_nickname):
-    try:
-        dbhandle.connect()
-        is_user_in_chat = False
-        for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
-            is_user_in_chat = True
-        if is_user_in_chat:
-            dbhandle.close()
-            return False
+    dbhandle.connect()
+    is_user_in_chat = False
+    for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
+        is_user_in_chat = True
+    if is_user_in_chat:
+        dbhandle.close()
+        print('hui')
+        return False
 
-        Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name,
-                       nick_name=user_nickname)
-        stats_of_user = 0
-        pidor_stats_of_user = 0
-        for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
-            stats_of_user = k.count
-        for p in PidorStats.select().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id)):
-            pidor_stats_of_user = p.count
-        if (stats_of_user == 0) and (pidor_stats_of_user == 0):
-            query = PidorStats.delete().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id))
-            query.execute()
-            query = Stats.delete().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id))
-            query.execute()
-            Stats.create(chat_id=chat_id, member_id=user_id, count=0)
-            PidorStats.create(chat_id=chat_id, member_id=user_id, count=0)
-        is_current_pidor_exists_for_chat = False
-        is_current_nice_exists_for_chat = False
-        for b in CurrentPidor.select().where(CurrentPidor.chat_id == chat_id):
-            is_current_pidor_exists_for_chat = True
-        for u in CurrentNice.select().where(CurrentNice.chat_id == chat_id):
-            is_current_nice_exists_for_chat = True
-        if (is_current_nice_exists_for_chat and is_current_pidor_exists_for_chat) is False:
-            CurrentNice.create(chat_id=chat_id, member_id=0, timestamp=0)
-            CurrentPidor.create(chat_id=chat_id, member_id=0, timestamp=0)
-        dbhandle.close()
-        return True
-    except Exception:
-        dbhandle.close()
+    q = Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name, nick_name=user_nickname)
+
+    stats_of_user = 0
+    pidor_stats_of_user = 0
+    for k in Stats.select().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id)):
+        stats_of_user = k.count
+    for p in PidorStats.select().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id)):
+        pidor_stats_of_user = p.count
+    if (stats_of_user == 0) and (pidor_stats_of_user == 0):
+        query = PidorStats.delete().where((PidorStats.chat_id == chat_id) & (PidorStats.member_id == user_id))
+        query.execute()
+        query = Stats.delete().where((Stats.chat_id == chat_id) & (Stats.member_id == user_id))
+        query.execute()
+        Stats.create(chat_id=chat_id, member_id=user_id, count=0)
+        PidorStats.create(chat_id=chat_id, member_id=user_id, count=0)
+    is_current_pidor_exists_for_chat = False
+    is_current_nice_exists_for_chat = False
+    for b in CurrentPidor.select().where(CurrentPidor.chat_id == chat_id):
+        is_current_pidor_exists_for_chat = True
+    for u in CurrentNice.select().where(CurrentNice.chat_id == chat_id):
+        is_current_nice_exists_for_chat = True
+    if (is_current_nice_exists_for_chat and is_current_pidor_exists_for_chat) is False:
+        CurrentNice.create(chat_id=chat_id, member_id=0, timestamp=0)
+        CurrentPidor.create(chat_id=chat_id, member_id=0, timestamp=0)
+    dbhandle.close()
+    return True
 
 
 
@@ -427,6 +425,10 @@ async def reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_nickname = user_info.user.username
     if user_nickname is None:
         user_nickname = str(reg_member) + 'nonickname'
+    print(chat_id)
+    print(reg_member)
+    print(user_full_name)
+    print(user_nickname)
     success_or_not = create_user(chat_id, reg_member, user_full_name, user_nickname)
 
     if success_or_not:
@@ -800,7 +802,6 @@ if __name__ == '__main__':
         PidorStickers.create_table()
         dbhandle.close()
     except peewee.InternalError as px:
-        print(str(px))
         dbhandle.close()
     application = ApplicationBuilder().token(getenv('BOT_TOKEN')).build()
     reg_handler = CommandHandler('reg', reg)
