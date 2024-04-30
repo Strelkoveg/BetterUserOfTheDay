@@ -24,7 +24,6 @@ def create_user(chat_id, user_id, user_full_name, user_nickname):
         is_user_in_chat = True
     if is_user_in_chat:
         dbhandle.close()
-        print('hui')
         return False
 
     q = Members.create(chat_id=chat_id, member_id=user_id, coefficient=10, pidor_coefficient=10, full_name=user_full_name, nick_name=user_nickname)
@@ -425,10 +424,6 @@ async def reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_nickname = user_info.user.username
     if user_nickname is None:
         user_nickname = str(reg_member) + 'nonickname'
-    print(chat_id)
-    print(reg_member)
-    print(user_full_name)
-    print(user_nickname)
     success_or_not = create_user(chat_id, reg_member, user_full_name, user_nickname)
 
     if success_or_not:
@@ -463,8 +458,6 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     congratulations = ""
     pidor_count = ""
-
-    sticker = True
 
     if is_not_time_expired(chat_id, 'current_pidor'):
         current_pidor_id = get_current_user(chat_id, 'current_pidor')['id']
@@ -504,7 +497,7 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             time.sleep(1)
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-
+    sticker = get_stickers_enable(chat_id)
     if sticker == True:
         congratulations = pidor_count_func(pidor_count)
         result_sticker = pidors_stickers()
@@ -521,11 +514,8 @@ async def pidor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if congratulations != "":
             await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
             await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers_list.DRINK_CHAMPAGNE)
+                                           sticker=stickers_list.BILLY_TEAR_OFF_VEST)
         # original
-
-    res = get_stickers_enable(chat_id)
-    print(res)
 
 def get_stickers_enable(chat_id):
         dbhandle.connect()
@@ -557,6 +547,19 @@ def pidor_count_func(pidor_count):
         congratulations = messages.FIFTEEN_TIMES
     if pidor_count == 100:
         congratulations = messages.HUNDRED_TIMES
+    else:
+        congratulations = ""
+    return congratulations
+
+def handsome_count_func(pidor_count):
+    if pidor_count == 1:
+        congratulations = messages.NICE_1_TIME
+    if pidor_count == 10:
+        congratulations = messages.NICE_10_TIMES
+    if pidor_count == 50:
+        congratulations = messages.NICE_50_TIMES
+    if pidor_count == 100:
+        congratulations = messages.NICE_100_TIMES
     else:
         congratulations = ""
     return congratulations
@@ -608,19 +611,25 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i in messages.NICE_MESSAGES:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=i)
             time.sleep(1)
-        if pidor_count == 1:
-            congratulations = messages.NICE_1_TIME
-        if pidor_count == 10:
-            congratulations = messages.NICE_10_TIMES
-        if pidor_count == 50:
-            congratulations = messages.NICE_50_TIMES
-        if pidor_count == 100:
-            congratulations = messages.NICE_100_TIMES
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-    if congratulations != "":
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
-        await context.bot.send_sticker(chat_id=update.effective_chat.id,
-                                           sticker=stickers_list.DRINK_CHAMPAGNE)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+        sticker = get_stickers_enable(chat_id)
+        if sticker == True:
+            congratulations = handsome_count_func(pidor_count)
+            result_sticker = handsome_stickers()
+            if congratulations != "":
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
+                await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                               sticker=result_sticker)
+            else:
+                await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                               sticker=result_sticker)
+        else:
+            congratulations = pidor_count_func(pidor_count)
+            # original
+            if congratulations != "":
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=congratulations)
+                await context.bot.send_sticker(chat_id=update.effective_chat.id,
+                                               sticker=stickers_list.DRINK_CHAMPAGNE)
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
