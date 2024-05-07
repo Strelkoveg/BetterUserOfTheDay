@@ -4,9 +4,11 @@ services:
     image: mysql:8.1
     volumes:
       - ./data:/var/lib/mysql
-      - ./setup_db/setup.sql:/docker-entrypoint-initdb.d/setup.sql
     environment:
       MYSQL_ROOT_PASSWORD: "passw"
+      MYSQL_DATABASE: "test_database"
+      MYSQL_USER: "bot"
+      MYSQL_PASSWORD: "11111"
     healthcheck:
       test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
       timeout: 20s
