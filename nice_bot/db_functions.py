@@ -354,3 +354,20 @@ def get_nickname_from_db(chat_id, member_id):
         nick_name = k.nick_name
     dbhandle.close()
     return nick_name
+
+def get_chat_members_nice_coefficients(chat_id):
+    dbhandle.connect()
+    coefficients = {}
+    for k in Members.select(Members.full_name, Members.coefficient).where(Members.chat_id == chat_id):
+        coefficients[k.full_name] = k.coefficient
+    dbhandle.close()
+    return coefficients
+
+def get_chat_members_pidor_coefficients(chat_id):
+    dbhandle.connect()
+    coefficients = {}
+    for k in Members.select(Members.full_name, Members.pidor_coefficient).where(Members.chat_id == chat_id):
+        coefficients[k.full_name] = k.pidor_coefficient
+    dbhandle.close()
+    return coefficients
+

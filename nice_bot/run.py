@@ -10,7 +10,8 @@ from db_functions import (create_user, unreg_in_data, is_not_time_expired, are_c
                           get_current_user, get_user_percentage_nice_pidor, get_pidor_stats, get_all_members,
                           get_random_id, get_random_id_carmic, get_full_name_from_db, get_nickname_from_db,
                           get_all_chat_ids, add_chat_to_carmic_dices_in_db, remove_chat_from_carmic_dices_in_db,
-                          reset_stats_data, set_full_name_and_nickname_in_db, update_current)
+                          reset_stats_data, set_full_name_and_nickname_in_db, update_current,
+                          get_chat_members_nice_coefficients, get_chat_members_pidor_coefficients)
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
@@ -292,6 +293,26 @@ async def percent_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def show_coefficients(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    coefficients = get_chat_members_nice_coefficients(chat_id)
+    text_list = ["Вероятности стать красавчиком:"]
+    for k, v in coefficients.items():
+        text_list.append(f"{k} - {v}")
+    text = '\n'.join(text_list)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+async def show_pidor_coefficients(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    coefficients = get_chat_members_pidor_coefficients(chat_id)
+    text_list = ["Вероятности стать пидором:"]
+    for k, v in coefficients.items():
+        text_list.append(f"{k} - {v}")
+    text = '\n'.join(text_list)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
 async def switch_on_carmic_dices_in_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
     keyboard = [[
@@ -343,11 +364,14 @@ if __name__ == '__main__':
     pidor_stats_handler = CommandHandler('pidorstats', pidor_stats)
     reset_stats_handler = CommandHandler('resetstats', reset_stats)
     percent_stats_handler = CommandHandler('percentstats', percent_stats)
+    nice_coefficients_handler = CommandHandler('nicecoefficients', show_coefficients)
+    pidor_coefficients_handler = CommandHandler('pidorcoefficients', show_pidor_coefficients)
     donate_handler = CommandHandler('contacts', donate)
     message_to_another_chat_handler = CommandHandler('another', send_message_to_another_chat)
     switch_on_carmic_dices_in_chat_handler = CommandHandler('carmicdices', switch_on_carmic_dices_in_chat)
     application.add_handlers([reg_handler, unreg_handler, pidor_handler, run_handler, stats_handler,
                               pidor_stats_handler, reset_stats_handler, percent_stats_handler,
+                              nice_coefficients_handler, pidor_coefficients_handler,
                               switch_on_carmic_dices_in_chat_handler, donate_handler, message_to_another_chat_handler,
                               CallbackQueryHandler(confirm_dialogs)])
     application.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, member_left))
