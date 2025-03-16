@@ -5,6 +5,9 @@ from db_init import dbhandle, Members, Stats, PidorStats, CurrentPidor, CurrentN
 
 
 def create_user(chat_id, user_id, user_full_name, user_nickname):
+
+    user_nickname = "NULL" if user_nickname == None else user_nickname
+
     dbhandle.connect()
     is_user_in_chat = False
     for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == user_id)):
@@ -332,6 +335,9 @@ def get_current_user(chat_id, current_dict):
 
 
 def set_full_name_and_nickname_in_db(chat_id, member_id, fullname, nickname):
+
+    nickname = "NULL" if nickname == None else nickname
+
     dbhandle.connect()
     Members.update(full_name=fullname, nick_name=nickname).where((Members.chat_id == chat_id)
                                                                  & (Members.member_id == member_id)).execute()
