@@ -298,7 +298,7 @@ async def show_coefficients(update: Update, context: ContextTypes.DEFAULT_TYPE):
     coefficients = get_chat_members_nice_coefficients(chat_id)
     text_list = ["Вероятности стать красавчиком:"]
     for k, v in coefficients.items():
-        text_list.append(f"{k} - {v}")
+        text_list.append(f"{k} - {v}%")
     text = '\n'.join(text_list)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
@@ -308,7 +308,7 @@ async def show_pidor_coefficients(update: Update, context: ContextTypes.DEFAULT_
     coefficients = get_chat_members_pidor_coefficients(chat_id)
     text_list = ["Вероятности стать пидором:"]
     for k, v in coefficients.items():
-        text_list.append(f"{k} - {v}")
+        text_list.append(f"{k} - {v}%")
     text = '\n'.join(text_list)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 

@@ -1,6 +1,9 @@
 import random
 import time
 import datetime
+
+from peewee import fn
+
 from db_init import dbhandle, Members, Stats, PidorStats, CurrentPidor, CurrentNice, CarmicDicesEnabled
 
 
@@ -364,16 +367,17 @@ def get_nickname_from_db(chat_id, member_id):
 def get_chat_members_nice_coefficients(chat_id):
     dbhandle.connect()
     coefficients = {}
+    coef_sum = Members.select(fn.SUM(Members.coefficient)).where(Members.chat_id == chat_id).scalar()
     for k in Members.select(Members.full_name, Members.coefficient).where(Members.chat_id == chat_id):
-        coefficients[k.full_name] = k.coefficient
+        coefficients[k.full_name] = round(k.coefficient / coef_sum * 100, 2)
     dbhandle.close()
     return coefficients
 
 def get_chat_members_pidor_coefficients(chat_id):
     dbhandle.connect()
     coefficients = {}
+    coef_sum = Members.select(fn.SUM(Members.pidor_coefficient)).where(Members.chat_id == chat_id).scalar()
     for k in Members.select(Members.full_name, Members.pidor_coefficient).where(Members.chat_id == chat_id):
-        coefficients[k.full_name] = k.pidor_coefficient
+        coefficients[k.full_name] = round(k.pidor_coefficient / coef_sum * 100, 2)
     dbhandle.close()
     return coefficients
-
