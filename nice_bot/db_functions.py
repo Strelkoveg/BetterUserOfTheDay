@@ -167,7 +167,7 @@ def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
         query.execute()
     if nice_or_pidor == 'pidor':
         for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == chosen_member)):
-            current_coefficient_chosen = i.coefficient
+            current_coefficient_chosen = i.pidor_coefficient
         new_coefficient_chosen = check_coefficient_for_chosen(current_coefficient_chosen - 2)
         query = Members.update(pidor_coefficient=new_coefficient_chosen).where((Members.chat_id == chat_id) &
                                                                                (Members.member_id == chosen_member))
@@ -184,7 +184,7 @@ def update_coefficient_for_users(chat_id, chosen_member, nice_or_pidor):
         if nice_or_pidor == 'pidor':
             current_pidor_coefficient = 10
             for i in Members.select().where((Members.chat_id == chat_id) & (Members.member_id == t)):
-                current_pidor_coefficient = i.coefficient
+                current_pidor_coefficient = i.pidor_coefficient
             new_pidor_coefficient = check_coefficient_for_others(current_pidor_coefficient)
             query = Members.update(pidor_coefficient=new_pidor_coefficient).where((Members.chat_id == chat_id) &
                                                                        (Members.member_id == t))
